@@ -1,2 +1,2 @@
-made with pygame 
+made with pygame \n
 cowboys are cool
