@@ -17,7 +17,8 @@ WINNER_FONT = pygame.font.SysFont('comicsansa', 100)
 
 BORDER = pygame.Rect((WIDTH//2)-5, 0, 10, HEIGHT)
 
-BULLET_VEL = 30
+BULLET_VEL = 50
+MAX_BULLETS = 6
 
 RED_HIT = pygame.USEREVENT + 1
 BLUE_HIT = pygame.USEREVENT + 2
@@ -25,11 +26,13 @@ RED_RELOAD = pygame.USEREVENT + 3
 BLUE_RELOAD = pygame.USEREVENT + 4
 RED_DASH_RELOAD = pygame.USEREVENT + 5
 BLUE_DASH_RELOAD = pygame.USEREVENT + 6
+AMMO_SPAWN = pygame.USEREVENT + 7
 
-VEL = 4
+VEL = 2     # int pls
 DASH = VEL * 20
+DASH_RELOAD_TIME = 5000
+
 COWBOY_WIDTH, COWBOY_HEIGHT = 50, 60
-RELOAD_TIME = 500
 
 COWBOY_RED_IMAGE = pygame.image.load(os.path.join('Assets', 'cowboy.png'))
 COWBOY_RED = pygame.transform.scale(COWBOY_RED_IMAGE, (COWBOY_WIDTH, COWBOY_HEIGHT))
@@ -39,9 +42,12 @@ COWBOY_BLUE = pygame.transform.flip(COWBOY_RED, True, False)    # Import blue co
 BARREL_WIDTH, BARREL_HEIGHT = 55, 60
 TABLE_WIDTH, TABLE_HEIGHT = 70, 40
 
+AMMO_VEL = 4
+AMMO_SPAWN_TIME = 6000
+
 BACKGROUND = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'background.png')),(WIDTH, HEIGHT))
 
-def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table):
+def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table, ammo_list):
     WIN.blit(BACKGROUND, (0, 0))
     pygame.draw.rect(WIN, BROWN, BORDER)
     WIN.blit(COWBOY_RED, (red.x, red.y))
@@ -58,7 +64,10 @@ def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletsc
         pygame.draw.rect(WIN, (25, 25, 25), bullet)
 
     for bullet in bullets_blue:
-            pygame.draw.rect(WIN, (25, 25, 25), bullet)
+        pygame.draw.rect(WIN, (25, 25, 25), bullet)
+
+    for ammo in ammo_list:
+        pygame.draw.rect(WIN, (0, 0 ,0), ammo['rect'])
 
     pygame.display.update()
 
@@ -229,6 +238,26 @@ def bullet_movement(red_bullets, blue_bullets, red, blue, barrel):
             blue_bullets.remove(bullet)
 
 
+def ammo_movement(ammo_list, red, blue):
+
+    for ammo in ammo_list:
+    
+        ammo['rect'].x += ammo['vel_x']
+        ammo['rect'].y += ammo['vel_y']
+
+        if ammo['rect'].x <= 0 or ammo['rect'].x >= WIDTH:
+            ammo['vel_x'] = -ammo['vel_x']
+        if ammo['rect'].y <= 0 or ammo['rect'].y >= HEIGHT:
+            ammo['vel_y'] = -ammo['vel_y']
+
+        if red.colliderect(ammo['rect']):
+            pygame.event.post(pygame.event.Event(RED_RELOAD))
+            ammo_list.remove(ammo)
+
+        if blue.colliderect(ammo['rect']):
+            pygame.event.post(pygame.event.Event(BLUE_RELOAD))
+            ammo_list.remove(ammo)
+
 def draw_winner(text):
     draw_text = WINNER_FONT.render(text, 1, (0, 0, 0))
     WIN.blit(draw_text, 
@@ -254,6 +283,9 @@ def main():
     tabley = random.randrange(150 + COWBOY_HEIGHT, HEIGHT - COWBOY_HEIGHT - 150)
     table = pygame.Rect(tablex, tabley, TABLE_WIDTH, TABLE_HEIGHT)
 
+    ammo_list = []
+    pygame.time.set_timer(AMMO_SPAWN, AMMO_SPAWN_TIME)
+
     bullets_red = []
     bullets_blue = []
     bulletscount_red = 1
@@ -277,36 +309,42 @@ def main():
                      bullet = pygame.Rect((red.x + red.width), (red.y + red.height//2 - 2), 10, 5) 
                      bullets_red.append(bullet)
                      bulletscount_red -= 1
-                     pygame.time.set_timer(RED_RELOAD, RELOAD_TIME)
-
 
                 if event.key == pygame.K_KP_ENTER and bulletscount_blue > 0:
                     bullet = pygame.Rect((blue.x), (blue.y + blue.height//2 - 2), 10, 5) 
                     bullets_blue.append(bullet)
                     bulletscount_blue -= 1
-                    pygame.time.set_timer(BLUE_RELOAD, RELOAD_TIME)
 
                 if event.key == pygame.K_b and dashcount_red > 0:
                     red_dash(pygame.key.get_pressed(), red, barrel, table)
                     dashcount_red -= 1
-                    pygame.time.set_timer(RED_DASH_RELOAD, RELOAD_TIME)
+                    pygame.time.set_timer(RED_DASH_RELOAD, DASH_RELOAD_TIME)
 
                 if event.key == pygame.K_KP_3 and dashcount_blue > 0:
                     blue_dash(pygame.key.get_pressed(), blue, barrel, table)
                     dashcount_blue -= 1
-                    pygame.time.set_timer(BLUE_DASH_RELOAD, RELOAD_TIME)
-                
+                    pygame.time.set_timer(BLUE_DASH_RELOAD, DASH_RELOAD_TIME)
+            
+            if event.type == AMMO_SPAWN:
+                ammo_x = random.randrange(0, WIDTH)
+                ammo_y = random.randrange(0, HEIGHT)
+                ammo = {'rect': pygame.Rect(ammo_x, ammo_y, 10, 10),
+                        'vel_x': AMMO_VEL,
+                        'vel_y': AMMO_VEL}
+                ammo_list.append(ammo)
+                print("Triggered ammo spawn")
+
             if event.type == RED_RELOAD:
-                bulletscount_red += 1
-                pygame.time.set_timer(RED_RELOAD, 0)
+                if bulletscount_red < MAX_BULLETS:
+                    bulletscount_red += 1
             
             if event.type == RED_DASH_RELOAD:
                 dashcount_red = 1
                 pygame.time.set_timer(RED_DASH_RELOAD, 0)
 
             if event.type == BLUE_RELOAD:
-                bulletscount_blue += 1
-                pygame.time.set_timer(BLUE_RELOAD, 0)
+                if bulletscount_blue < MAX_BULLETS:
+                    bulletscount_blue += 1
 
             if event.type == BLUE_DASH_RELOAD:
                 dashcount_blue = 1
@@ -323,14 +361,16 @@ def main():
             pygame.time.set_timer(BLUE_RELOAD, 0)
             draw_winner(winner_text)
             break
-
+        
         keys_pressed = pygame.key.get_pressed()
         red_movement(keys_pressed, red, barrel, table)
         blue_movement(keys_pressed, blue, barrel, table)
 
         bullet_movement(bullets_red, bullets_blue, red, blue, barrel)
+
+        ammo_movement(ammo_list, red, blue)
         
-        draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table)
+        draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table, ammo_list)
 
     main()
 
