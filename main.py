@@ -1,5 +1,6 @@
 import pygame
 import os
+import random
 pygame.font.init()
 
 pygame.init()
@@ -27,8 +28,8 @@ BLUE_DASH_RELOAD = pygame.USEREVENT + 6
 
 VEL = 4
 DASH = VEL * 20
-COWBOY_WIDTH, COWBOY_HEIGHT = 55, 60
-RELOAD_TIME = 3000
+COWBOY_WIDTH, COWBOY_HEIGHT = 50, 60
+RELOAD_TIME = 500
 
 COWBOY_RED_IMAGE = pygame.image.load(os.path.join('Assets', 'cowboy.png'))
 COWBOY_RED = pygame.transform.scale(COWBOY_RED_IMAGE, (COWBOY_WIDTH, COWBOY_HEIGHT))
@@ -40,12 +41,13 @@ TABLE_WIDTH, TABLE_HEIGHT = 70, 40
 
 BACKGROUND = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'background.png')),(WIDTH, HEIGHT))
 
-def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel):
+def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table):
     WIN.blit(BACKGROUND, (0, 0))
     pygame.draw.rect(WIN, BROWN, BORDER)
     WIN.blit(COWBOY_RED, (red.x, red.y))
     WIN.blit(COWBOY_BLUE, (blue.x, blue.y))
     pygame.draw.rect(WIN, BROWN, barrel)
+    pygame.draw.rect(WIN, BROWN, table)
 
     bulletscount_red_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_blue), 1, (0, 0, 0))
     bulletscount_blue_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_red), 1, (0, 0, 0))
@@ -61,19 +63,31 @@ def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletsc
     pygame.display.update()
 
 
-def collision_test(keys_pressed, player, obj, movement):    # object that collides and movement (dash or vel)
+def collision_test_red(keys_pressed, player, obj):
     if player.colliderect(obj):
-        if keys_pressed[pygame.K_a] or keys_pressed[pygame.K_LEFT]:
-            player.x += movement
-        if keys_pressed[pygame.K_d] or keys_pressed[pygame.K_RIGHT]:
-            player.x -= movement
-        if keys_pressed[pygame.K_w] or keys_pressed[pygame.K_UP]:
-            player.y += movement
-        if keys_pressed[pygame.K_s] or keys_pressed[pygame.K_DOWN]:
-            player.y -= movement
+        if keys_pressed[pygame.K_a]:
+            player.x += VEL
+        if keys_pressed[pygame.K_d]:
+            player.x -= VEL
+        if keys_pressed[pygame.K_w]:
+            player.y += VEL
+        if keys_pressed[pygame.K_s]:
+            player.y -= VEL
 
 
-def red_movement(keys_pressed, red, barrel):
+def collision_test_blue(keys_pressed, player, obj):
+    if player.colliderect(obj):
+        if keys_pressed[pygame.K_LEFT]:
+            player.x += VEL
+        if keys_pressed[pygame.K_RIGHT]:
+            player.x -= VEL
+        if keys_pressed[pygame.K_UP]:
+            player.y += VEL
+        if keys_pressed[pygame.K_DOWN]:
+            player.y -= VEL
+
+
+def red_movement(keys_pressed, red, *args):
         if keys_pressed[pygame.K_a] and (red.x-VEL) > 0:
             red.x -= VEL
         if keys_pressed[pygame.K_d] and (red.x-VEL) < (BORDER.x - COWBOY_WIDTH):
@@ -82,9 +96,11 @@ def red_movement(keys_pressed, red, barrel):
             red.y -= VEL
         if keys_pressed[pygame.K_s] and (red.y-VEL) < (HEIGHT - COWBOY_HEIGHT - 5):
             red.y += VEL
-        collision_test(keys_pressed, red, barrel, VEL)
 
-def blue_movement(keys_pressed, blue):
+        for obj in args:
+            collision_test_red(keys_pressed, red, obj)  # This collision test feels good but probably isn't really
+
+def blue_movement(keys_pressed, blue, *args):
         if keys_pressed[pygame.K_LEFT] and (blue.x+VEL) > (BORDER.x + BORDER.width):
             blue.x -= VEL
         if keys_pressed[pygame.K_RIGHT] and (blue.x-VEL) < (WIDTH - COWBOY_WIDTH):
@@ -94,7 +110,10 @@ def blue_movement(keys_pressed, blue):
         if keys_pressed[pygame.K_DOWN] and (blue.y-VEL) < (HEIGHT - COWBOY_HEIGHT - 5):
             blue.y += VEL
 
-def red_dash(keys_pressed, red, barrel):
+        for obj in args:
+            collision_test_blue(keys_pressed, blue, obj)    
+
+def red_dash(keys_pressed, red, barrel, table):
 
     if keys_pressed[pygame.K_w]:
         if (red.y-DASH) > 0:
@@ -102,17 +121,32 @@ def red_dash(keys_pressed, red, barrel):
         else:
             red.y = 0
 
+        if red.colliderect(barrel):
+            red.y = barrel.y + BARREL_HEIGHT    # This is terrible
+        if red.colliderect(table):
+            red.y = table.y + TABLE_HEIGHT
+
     elif keys_pressed[pygame.K_s]:
         if (red.y+DASH) < (HEIGHT - COWBOY_HEIGHT - 5):
-            red.y += DASH 
+            red.y += BARREL_HEIGHT 
         else:
             red.y = (HEIGHT - COWBOY_HEIGHT - 5)
+
+        if red.colliderect(barrel):
+            red.y = barrel.y - COWBOY_HEIGHT
+        if red.colliderect(table):
+            red.y = table.y - COWBOY_HEIGHT
 
     elif keys_pressed[pygame.K_a]:
         if (red.x-DASH) > 0:
             red.x -= DASH
         else:
             red.x = 0
+
+        if red.colliderect(barrel):
+            red.x = barrel.x + BARREL_WIDTH
+        if red.colliderect(table):
+            red.x = table.x + TABLE_WIDTH       
     
     elif keys_pressed[pygame.K_d]:
         if (red.x+DASH) < (BORDER.x - COWBOY_WIDTH):
@@ -120,8 +154,13 @@ def red_dash(keys_pressed, red, barrel):
         else:
             red.x = (BORDER.x - COWBOY_WIDTH)
 
+        if red.colliderect(barrel):
+            red.x = barrel.x - COWBOY_WIDTH
+        if red.colliderect(table):
+            red.x = table.x - COWBOY_WIDTH
 
-def blue_dash(keys_pressed, blue):
+
+def blue_dash(keys_pressed, blue, barrel, table):
 
     if keys_pressed[pygame.K_UP]:
         if (blue.y-DASH) > 0:
@@ -129,23 +168,43 @@ def blue_dash(keys_pressed, blue):
         else:
             blue.y = 0
 
+        if blue.colliderect(barrel):
+            blue.y = barrel.y + BARREL_HEIGHT
+        if blue.colliderect(table):
+            blue.y = table.y + TABLE_HEIGHT
+
     elif keys_pressed[pygame.K_DOWN]:
         if (blue.y+DASH) < (HEIGHT - COWBOY_HEIGHT - 5):
             blue.y += DASH 
         else:
             blue.y = (HEIGHT - COWBOY_HEIGHT - 5)
 
+        if blue.colliderect(barrel):
+            blue.y = barrel.y - COWBOY_HEIGHT
+        if blue.colliderect(table):
+            blue.y = table.y - COWBOY_HEIGHT
+
     elif keys_pressed[pygame.K_LEFT]:
         if (blue.x-DASH) > (BORDER.x + BORDER.width):
             blue.x -= DASH
         else:
             blue.x = (BORDER.x + BORDER.width)
+
+        if blue.colliderect(barrel):
+            blue.x = barrel.x + BARREL_WIDTH
+        if blue.colliderect(table):
+            blue.x = table.x + TABLE_WIDTH
     
     elif keys_pressed[pygame.K_RIGHT]:
         if (blue.x+DASH) < (WIDTH - COWBOY_WIDTH):
             blue.x += DASH
         else:
             blue.x = (WIDTH - COWBOY_WIDTH)
+
+        if blue.colliderect(barrel):
+            blue.x = barrel.x - COWBOY_WIDTH
+        if blue.colliderect(table):
+            blue.x = table.x - COWBOY_WIDTH
 
 
 def bullet_movement(red_bullets, blue_bullets, red, blue, barrel):
@@ -181,10 +240,19 @@ def draw_winner(text):
 
 def main():
 
-    red = pygame.Rect(200, 200, COWBOY_WIDTH, COWBOY_HEIGHT)
-    blue = pygame.Rect(600, 200, COWBOY_WIDTH, COWBOY_HEIGHT)
+    red = pygame.Rect( 100, 100, COWBOY_WIDTH, COWBOY_HEIGHT)
+    blue = pygame.Rect(WIDTH - 100, HEIGHT - 100, COWBOY_WIDTH, COWBOY_HEIGHT)
 
-    barrel = pygame.Rect(200, 400, BARREL_WIDTH, BARREL_HEIGHT)
+    barrelx = random.randrange(150 + COWBOY_WIDTH, WIDTH - COWBOY_WIDTH - 150)
+    barrely = random.randrange(150 + COWBOY_HEIGHT, HEIGHT - COWBOY_HEIGHT - 150)
+    barrel = pygame.Rect(barrelx, barrely, BARREL_WIDTH, BARREL_HEIGHT)
+
+    if barrelx > BORDER.x:
+        tablex = random.randrange(150 + COWBOY_WIDTH, BORDER.x - TABLE_WIDTH)
+    else:
+        tablex = random.randrange(BORDER.x + TABLE_WIDTH, WIDTH - COWBOY_WIDTH - 150)
+    tabley = random.randrange(150 + COWBOY_HEIGHT, HEIGHT - COWBOY_HEIGHT - 150)
+    table = pygame.Rect(tablex, tabley, TABLE_WIDTH, TABLE_HEIGHT)
 
     bullets_red = []
     bullets_blue = []
@@ -219,12 +287,12 @@ def main():
                     pygame.time.set_timer(BLUE_RELOAD, RELOAD_TIME)
 
                 if event.key == pygame.K_b and dashcount_red > 0:
-                    red_dash(pygame.key.get_pressed(), red, barrel)
+                    red_dash(pygame.key.get_pressed(), red, barrel, table)
                     dashcount_red -= 1
                     pygame.time.set_timer(RED_DASH_RELOAD, RELOAD_TIME)
 
                 if event.key == pygame.K_KP_3 and dashcount_blue > 0:
-                    blue_dash(pygame.key.get_pressed(), blue)
+                    blue_dash(pygame.key.get_pressed(), blue, barrel, table)
                     dashcount_blue -= 1
                     pygame.time.set_timer(BLUE_DASH_RELOAD, RELOAD_TIME)
                 
@@ -257,12 +325,12 @@ def main():
             break
 
         keys_pressed = pygame.key.get_pressed()
-        red_movement(keys_pressed, red, barrel)
-        blue_movement(keys_pressed, blue)
+        red_movement(keys_pressed, red, barrel, table)
+        blue_movement(keys_pressed, blue, barrel, table)
 
         bullet_movement(bullets_red, bullets_blue, red, blue, barrel)
         
-        draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel)
+        draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletscount_blue, barrel, table)
 
     main()
 
