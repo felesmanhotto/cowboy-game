@@ -10,7 +10,7 @@ WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Jogo do Pinho")
 FPS = 60
 
-BROWN = (128,0,0)
+BROWN = (75,0,0)
 
 BULLETSCOUNT_FONT = pygame.font.SysFont('comicsans', 40)
 WINNER_FONT = pygame.font.SysFont('comicsansa', 100)
@@ -39,8 +39,23 @@ COWBOY_RED = pygame.transform.scale(COWBOY_RED_IMAGE, (COWBOY_WIDTH, COWBOY_HEIG
 
 COWBOY_BLUE = pygame.transform.flip(COWBOY_RED, True, False)    # Import blue cowboy image
 
-BARREL_WIDTH, BARREL_HEIGHT = 55, 60
-TABLE_WIDTH, TABLE_HEIGHT = 70, 40
+BARREL_WIDTH, BARREL_HEIGHT = 60, 70
+TABLE_WIDTH, TABLE_HEIGHT = 80, 60
+AMMO_WIDTH, AMMO_HEIGHT = 25, 25
+BULLET_WIDTH, BULLET_HEIGHT = 10, 5
+
+BARREL_IMAGE = pygame.image.load(os.path.join('Assets', 'barrel.png'))
+BARREL = pygame.transform.scale(BARREL_IMAGE, (BARREL_WIDTH, BARREL_HEIGHT))
+
+TABLE_IMAGE = pygame.image.load(os.path.join('Assets', 'table.png'))
+TABLE = pygame.transform.scale(TABLE_IMAGE, (TABLE_WIDTH, TABLE_HEIGHT))
+
+AMMO_IMAGE = pygame.image.load(os.path.join('Assets', 'ammo.png'))
+AMMO = pygame.transform.scale(AMMO_IMAGE, (AMMO_WIDTH, AMMO_HEIGHT))
+
+BULLET_IMAGE = pygame.image.load(os.path.join('Assets', 'bullet.png'))
+BULLET_RED = pygame.transform.scale(BULLET_IMAGE, (BULLET_WIDTH, BULLET_HEIGHT))
+BULLET_BLUE = pygame.transform.flip(BULLET_RED, True, False)
 
 AMMO_VEL = 4
 AMMO_SPAWN_TIME = 6000
@@ -52,8 +67,8 @@ def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletsc
     pygame.draw.rect(WIN, BROWN, BORDER)
     WIN.blit(COWBOY_RED, (red.x, red.y))
     WIN.blit(COWBOY_BLUE, (blue.x, blue.y))
-    pygame.draw.rect(WIN, BROWN, barrel)
-    pygame.draw.rect(WIN, BROWN, table)
+    WIN.blit(BARREL, (barrel.x, barrel.y))
+    WIN.blit(TABLE, (table.x, table.y))
 
     bulletscount_red_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_blue), 1, (0, 0, 0))
     bulletscount_blue_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_red), 1, (0, 0, 0))
@@ -61,13 +76,13 @@ def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletsc
     WIN.blit(bulletscount_blue_text, (10, 10))
 
     for bullet in bullets_red:
-        pygame.draw.rect(WIN, (25, 25, 25), bullet)
+        WIN.blit(BULLET_RED, (bullet.x, bullet.y))
 
     for bullet in bullets_blue:
-        pygame.draw.rect(WIN, (25, 25, 25), bullet)
+        WIN.blit(BULLET_BLUE, (bullet.x, bullet.y))
 
     for ammo in ammo_list:
-        pygame.draw.rect(WIN, (0, 0 ,0), ammo['rect'])
+        WIN.blit(AMMO, (ammo['rect'].x, ammo['rect'].y))
 
     pygame.display.update()
 
@@ -216,15 +231,13 @@ def blue_dash(keys_pressed, blue, barrel, table):
             blue.x = table.x - COWBOY_WIDTH
 
 
-def bullet_movement(red_bullets, blue_bullets, red, blue, barrel):
+def bullet_movement(red_bullets, blue_bullets, red, blue, barrel, table):
     for bullet in red_bullets:
         bullet.x += BULLET_VEL
         if blue.colliderect(bullet):
             pygame.event.post(pygame.event.Event(BLUE_HIT))
             red_bullets.remove(bullet)
-        elif barrel.colliderect(bullet):
-            red_bullets.remove(bullet)
-        elif bullet.x > WIDTH:
+        elif barrel.colliderect(bullet) or table.colliderect(bullet) or bullet.x > WIDTH:
             red_bullets.remove(bullet)
 
     for bullet in blue_bullets:
@@ -232,9 +245,7 @@ def bullet_movement(red_bullets, blue_bullets, red, blue, barrel):
         if red.colliderect(bullet):
             pygame.event.post(pygame.event.Event(RED_HIT))
             blue_bullets.remove(bullet)
-        elif barrel.colliderect(bullet):
-            blue_bullets.remove(bullet)
-        elif bullet.x < 0:
+        elif barrel.colliderect(bullet) or table.colliderect(bullet) or bullet.x < 0:
             blue_bullets.remove(bullet)
 
 
@@ -306,12 +317,12 @@ def main():
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and bulletscount_red > 0:
-                     bullet = pygame.Rect((red.x + red.width), (red.y + red.height//2 - 2), 10, 5) 
+                     bullet = pygame.Rect((red.x + red.width), (red.y + red.height//2 - 2), BULLET_WIDTH, BULLET_HEIGHT) 
                      bullets_red.append(bullet)
                      bulletscount_red -= 1
 
                 if event.key == pygame.K_KP_ENTER and bulletscount_blue > 0:
-                    bullet = pygame.Rect((blue.x), (blue.y + blue.height//2 - 2), 10, 5) 
+                    bullet = pygame.Rect((blue.x), (blue.y + blue.height//2 - 2), BULLET_WIDTH, BULLET_HEIGHT) 
                     bullets_blue.append(bullet)
                     bulletscount_blue -= 1
 
@@ -328,7 +339,7 @@ def main():
             if event.type == AMMO_SPAWN:
                 ammo_x = random.randrange(0, WIDTH)
                 ammo_y = random.randrange(0, HEIGHT)
-                ammo = {'rect': pygame.Rect(ammo_x, ammo_y, 10, 10),
+                ammo = {'rect': pygame.Rect(ammo_x, ammo_y, AMMO_WIDTH, AMMO_HEIGHT),
                         'vel_x': AMMO_VEL,
                         'vel_y': AMMO_VEL}
                 ammo_list.append(ammo)
@@ -366,7 +377,7 @@ def main():
         red_movement(keys_pressed, red, barrel, table)
         blue_movement(keys_pressed, blue, barrel, table)
 
-        bullet_movement(bullets_red, bullets_blue, red, blue, barrel)
+        bullet_movement(bullets_red, bullets_blue, red, blue, barrel, table)
 
         ammo_movement(ammo_list, red, blue)
         
