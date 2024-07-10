@@ -2,6 +2,7 @@ import pygame
 import os
 import random
 pygame.font.init()
+pygame.mixer.init()
 
 pygame.init()
 
@@ -16,6 +17,17 @@ BULLETSCOUNT_FONT = pygame.font.SysFont('comicsans', 40)
 WINNER_FONT = pygame.font.SysFont('comicsansa', 100)
 
 BORDER = pygame.Rect((WIDTH//2)-5, 0, 10, HEIGHT)
+
+
+pygame.mixer.music.load(os.path.join('Assets', 'music.mp3'))
+pygame.mixer.music.set_volume(0.8)
+HIT_SOUND = pygame.mixer.Sound(os.path.join('Assets', 'death-sound.mp3'))
+FIRE_SOUND = pygame.mixer.Sound(os.path.join('Assets', 'gun-shot.mp3'))
+LOAD_SOUND = pygame.mixer.Sound(os.path.join('Assets', 'gun-load.mp3'))
+DASH_SOUND = pygame.mixer.Sound(os.path.join('Assets', 'dash-sound.mp3'))
+FIRE_SOUND.set_volume(0.3)
+LOAD_SOUND.set_volume(0.8)
+DASH_SOUND.set_volume(1.5)
 
 BULLET_VEL = 50
 MAX_BULLETS = 6
@@ -70,8 +82,8 @@ def draw_window(red, blue, bullets_red, bullets_blue, bulletscount_red, bulletsc
     WIN.blit(BARREL, (barrel.x, barrel.y))
     WIN.blit(TABLE, (table.x, table.y))
 
-    bulletscount_red_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_blue), 1, (0, 0, 0))
-    bulletscount_blue_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_red), 1, (0, 0, 0))
+    bulletscount_red_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_blue), 1, (25,25,112))
+    bulletscount_blue_text = BULLETSCOUNT_FONT.render("Bullets: " + str(bulletscount_red), 1, (178,34,34))
     WIN.blit(bulletscount_red_text, (WIDTH - bulletscount_red_text.get_width() - 10, 10))
     WIN.blit(bulletscount_blue_text, (10, 10))
 
@@ -270,7 +282,10 @@ def ammo_movement(ammo_list, red, blue):
             ammo_list.remove(ammo)
 
 def draw_winner(text):
-    draw_text = WINNER_FONT.render(text, 1, (0, 0, 0))
+    if text == "Red wins!":
+        draw_text = WINNER_FONT.render(text, 1, (178,34,34))
+    if text == "Blue wins!":
+        draw_text = WINNER_FONT.render(text, 1, (25,25,112))
     WIN.blit(draw_text, 
              (WIDTH//2 - draw_text.get_width()//2,
              HEIGHT//2 - draw_text.get_height()//2))
@@ -304,6 +319,7 @@ def main():
     dashcount_red = 1
     dashcount_blue = 1
 
+    pygame.mixer.music.play(loops=-1, fade_ms=0)
 
     clock = pygame.time.Clock()
     run = True
@@ -320,21 +336,25 @@ def main():
                      bullet = pygame.Rect((red.x + red.width), (red.y + red.height//2 - 2), BULLET_WIDTH, BULLET_HEIGHT) 
                      bullets_red.append(bullet)
                      bulletscount_red -= 1
+                     FIRE_SOUND.play()
 
                 if event.key == pygame.K_KP_ENTER and bulletscount_blue > 0:
                     bullet = pygame.Rect((blue.x), (blue.y + blue.height//2 - 2), BULLET_WIDTH, BULLET_HEIGHT) 
                     bullets_blue.append(bullet)
                     bulletscount_blue -= 1
+                    FIRE_SOUND.play()
 
                 if event.key == pygame.K_b and dashcount_red > 0:
                     red_dash(pygame.key.get_pressed(), red, barrel, table)
                     dashcount_red -= 1
                     pygame.time.set_timer(RED_DASH_RELOAD, DASH_RELOAD_TIME)
+                    DASH_SOUND.play()
 
                 if event.key == pygame.K_KP_3 and dashcount_blue > 0:
                     blue_dash(pygame.key.get_pressed(), blue, barrel, table)
                     dashcount_blue -= 1
                     pygame.time.set_timer(BLUE_DASH_RELOAD, DASH_RELOAD_TIME)
+                    DASH_SOUND.play()
             
             if event.type == AMMO_SPAWN:
                 ammo_x = random.randrange(0, WIDTH)
@@ -343,11 +363,11 @@ def main():
                         'vel_x': AMMO_VEL,
                         'vel_y': AMMO_VEL}
                 ammo_list.append(ammo)
-                print("Triggered ammo spawn")
 
             if event.type == RED_RELOAD:
                 if bulletscount_red < MAX_BULLETS:
                     bulletscount_red += 1
+                    LOAD_SOUND.play()
             
             if event.type == RED_DASH_RELOAD:
                 dashcount_red = 1
@@ -356,18 +376,22 @@ def main():
             if event.type == BLUE_RELOAD:
                 if bulletscount_blue < MAX_BULLETS:
                     bulletscount_blue += 1
+                    LOAD_SOUND.play()
 
             if event.type == BLUE_DASH_RELOAD:
                 dashcount_blue = 1
                 pygame.time.set_timer(BLUE_DASH_RELOAD, 0)
 
             if event.type == RED_HIT:
+                HIT_SOUND.play()
                 winner_text = "Blue wins!"
 
             if event.type == BLUE_HIT:
+                HIT_SOUND.play()
                 winner_text = "Red wins!"
 
         if winner_text:
+            pygame.mixer.music.stop()
             pygame.time.set_timer(RED_RELOAD, 0)
             pygame.time.set_timer(BLUE_RELOAD, 0)
             draw_winner(winner_text)
