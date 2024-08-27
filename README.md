@@ -1,4 +1,4 @@
-first game made with pygame, probably overcomplicated. <br/>
+first game made with pygame <br/>
 
 [WASD / ARROWKEYS      ->    MOVEMENT ] <br/>
 [SPACEBAR / NUM-ENTER  ->    SHOOT] <br/>
